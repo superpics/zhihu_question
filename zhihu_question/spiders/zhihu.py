@@ -1,11 +1,14 @@
 #!/usr/bin/env python3        #跨平台注释
 # -*- coding: utf-8 -*-       #中文支持注释
 
-import html
 from time import sleep
 import json
 
 import scrapy
+from scrapy import Selector
+from w3lib.html import remove_tags
+
+from zhihu_question.items import ZhihuQuestionItem
 
 
 class DmozItem(scrapy.Item):
@@ -23,27 +26,44 @@ class zhihu(scrapy.Spider):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36"
     }
 
-    url_template = r"https://www.zhihu.com/api/v4/questions/311464426/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=5&offset={0}&platform=desktop&sort_by=default"
-    url_template_test = r"https://www.zhihu.com/api/v4/questions/311464426/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=5&offset={0}&platform=desktop&sort_by=default"
+    # 广州的你，择偶的标准是怎样的？
+    url_template1 = r"https://www.zhihu.com/api/v4/questions/311464426/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=20&offset={0}&platform=desktop&sort_by=default"
+    # 你择偶的标准是怎样的？
+    url_template2 = r"https://www.zhihu.com/api/v4/questions/275359100/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=5&offset={0}&platform=desktop&sort_by=default"
+    # 有个漂亮女朋友是什么样的体验？
+    url_template3 = r"https://www.zhihu.com/api/v4/questions/285906324/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=5&offset=8&platform=desktop&sort_by=default"
+
 
     # scrapy 配置
     name="zhihu"
     allowed_domains = ["www.zhihu.com"]
 
     def start_requests(self):
-        for offset in range(3):
-            yield scrapy.Request(url=self.url_template.format(offset), headers=self.headers, callback=self.parse)
+        for offset in range(0, 50000, 20):
+            yield scrapy.Request(url=self.url_template2.format(offset), headers=self.headers, callback=self.parse)
+            print(offset)
             sleep(1)
-        # yield scrapy.Request(url=self.url_template_test.format(5), headers=self.headers, callback=self.parse)
 
     def parse(self, response):
-        # # html转义，如: &lt; => <
-        # convert_html = html.unescape(response.body.decode(encoding='utf-8'))
-        # # unicode转字符，如：\u003cbr/\u003e => <br>
-        # convert_unicode = eval("'''" + convert_html + "'''")
-        # print(convert_unicode)
-        # text = json.loads(convert_unicode)
-        # print(text)
-
         text = json.loads(response.body.decode(encoding='utf-8'))
-        print(text)
+
+        if not text['paging']['is_end']:
+            for answer in text['data']:
+                item = ZhihuQuestionItem()
+
+                # 获取剔除掉 html 标签的回答内容
+                item['content'] = remove_tags(answer['content'])
+
+                # 获取回答中的图片url
+                img_urls = Selector(text=answer['content']).xpath("//img/@src").extract()
+                for url in img_urls:
+                    if url.startswith("data"):
+                        img_urls.remove(url)
+                item['image_urls'] = img_urls
+
+                # 获取id
+                item['id'] = str(answer['id'])
+
+                yield item
+        else:
+            self.crawler.engine.close_spider(self, '===> it is end')

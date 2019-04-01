@@ -14,7 +14,6 @@ BOT_NAME = 'zhihu_question'
 SPIDER_MODULES = ['zhihu_question.spiders']
 NEWSPIDER_MODULE = 'zhihu_question.spiders'
 
-SPLASH_URL = 'http://localhost:32768'
 
 DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
 HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
@@ -24,6 +23,12 @@ HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
+
+# 随机延迟下载，0.5到1.5之间的一个随机值 * DOWNLOAD_DELAY 的结果作为等待间隔
+RANDOM_DELAY = 2
+
+# 对单个网站进行并发请求的最大值
+#CONCURRENT_REQUESTS_PER_IP = 1
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
@@ -72,9 +77,11 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'zhihu_question.pipelines.ZhihuQuestionPipeline': 300,
-#}
+ITEM_PIPELINES = {
+   'zhihu_question.pipelines.ZhihuQuestionPipeline': 300,
+   'zhihu_question.pipelines.SaveContentPipeline': 301,
+   'zhihu_question.pipelines.ImgPipeline': 302
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -96,3 +103,22 @@ DOWNLOADER_MIDDLEWARES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+# 设置图片下载路径z
+IMAGES_STORE = 'z:\\images\\'
+# 图片过期天数，90天内抓取的都不会被重抓
+IMAGES_EXPIRES = 90
+# 该字段的值为XxxItem中定义的存储图片链接的image_urls字段
+IMAGES_URLS_FIELD='image_urls'
+# 该字段的值为XxxItem中定义的存储图片信息的images字段
+IMAGES_RESULT_FIELD='images'
+# 过滤小图片(可选)
+IMAGES_MIN_HEIGHT = 110
+IMAGES_MIN_WIDTH = 110
+# 是否允许重定向(可选)
+# MEDIA_ALLOW_REDIRECTS = True
+# 生成缩略图(可选)
+# IMAGES_THUMBS = {
+#     'small': (50, 50),
+#     'big': (270, 270),
+# }
