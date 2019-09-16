@@ -7,7 +7,9 @@
 import json
 import os
 import random
+import uuid
 
+import scrapy
 from scrapy import Request
 from scrapy.pipelines.images import ImagesPipeline
 
@@ -20,7 +22,7 @@ class ZhihuQuestionPipeline(object):
 # 用于保存回答内容
 class SaveContentPipeline(object):
     def process_item(self, item, spider):
-        file = open("Z:\zobz.txt", "a", encoding='utf8')
+        file = open("/tmp/scrapy/zobz.txt", "a", encoding='utf8')
         file.write(item['content'] + "\n")
         return item
 
@@ -70,28 +72,15 @@ class ImgPipeline(ImagesPipeline):
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         "accept-encoding": "gzip, deflate, br",
         "upgrade-insecure-requests": "1",
-        "User-Agent": random.choice(user_agent_list),
-        "referer": "https://www.zhihu.com/question/275359100"
+        "User-Agent": random.choice(user_agent_list)
     }
-
 
     # 发送图片下载请求
     def get_media_requests(self, item, info):
-        self.item = self
         for image_url in item['image_urls']:
             yield Request(image_url, meta={'item': item, 'referer': image_url, 'headers': self.headers})
 
     # 这个方法是在图片将要被存储的时候调用，来获取这个图片存储的路径
     def file_path(self, request, response=None, info=None):
-        item = request.meta['item']
-        image_path = item['id']
-
-        # 可创建不存在的父目录
-        parent_path = "z:\\images\\" + image_path
-        if not os.path.exists(parent_path):
-            os.makedirs(parent_path)
-        file_name = request.meta['referer'].split("/")[-1]
-
-        return image_path + "\\" + file_name
-
-
+        img_file = str(uuid.uuid1()) + ".jpg"
+        return img_file

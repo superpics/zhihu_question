@@ -15,6 +15,6 @@ class ZhihuQuestionItem(scrapy.Item):
     id = scrapy.Field()
     content = scrapy.Field()
     image_urls = scrapy.Field()
-    images = scrapy.Field()
+    # images = scrapy.Field()
 
 
