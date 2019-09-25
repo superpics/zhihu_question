@@ -83,8 +83,11 @@ DOWNLOADER_MIDDLEWARES = {
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    'zhihu_question.pipelines.ZhihuQuestionPipeline': 300,
-   'zhihu_question.pipelines.SaveContentPipeline': 301,
-   'zhihu_question.pipelines.ImgPipeline': 302
+    #回答保存到本地，注释即可关闭
+   # 'zhihu_question.pipelines.SaveContentToLocalPipeline': 301,
+    #回答保存到mysql，注释即可关闭
+   'zhihu_question.pipelines.SaveContentToMysqlPipeline': 302,
+   'zhihu_question.pipelines.ImgPipeline': 303
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

@@ -4,14 +4,13 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-import json
-import os
 import random
 import uuid
 
-import scrapy
 from scrapy import Request
 from scrapy.pipelines.images import ImagesPipeline
+
+from zhihu_question.items import ZhihuAnswerEntity
 
 
 class ZhihuQuestionPipeline(object):
@@ -19,11 +18,32 @@ class ZhihuQuestionPipeline(object):
         return item
 
 
-# 用于保存回答内容
-class SaveContentPipeline(object):
+# 用于保存回答信息到本地
+class SaveContentToLocalPipeline(object):
     def process_item(self, item, spider):
         file = open("/tmp/scrapy/zobz.txt", "a", encoding='utf8')
         file.write(item['content'] + "\n")
+        return item
+
+
+# 用于保存回答信息到 mysql
+class SaveContentToMysqlPipeline(object):
+    def process_item(self, item, spider):
+        entity = ZhihuAnswerEntity.create(
+            id=item['id'],
+            content=item['content'],
+            created_time=item['created_time'],
+            updated_time=item['updated_time'],
+            voteup_count=item['voteup_count'],
+            comment_count=item['comment_count'],
+            author_name=item['author_name'],
+            author_url_token=item['author_url_token'],
+            author_headline=item['author_headline'],
+            author_gender=item['author_gender']
+        )
+
+        entity.save()
+
         return item
 
 
