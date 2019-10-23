@@ -8,11 +8,12 @@ import scrapy
 from scrapy import Selector
 from w3lib.html import remove_tags
 
-from zhihu_question.items import ZhihuAnswerItem
+from zhihu_question.items import ZhihuAnswerItem, ZhihuCommentItem
 
 
-class DmozItem(scrapy.Item):
-    content = scrapy.Field()
+# 执行方法，进入项目目录：
+# scrapy crawl zhihu
+
 
 
 class zhihu(scrapy.Spider):
@@ -27,6 +28,8 @@ class zhihu(scrapy.Spider):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36"
     }
 
+    # 回答下的评论接口
+    comment_template=r'https://www.zhihu.com/api/v4/answers/{0}/root_comments?order=normal&limit=20&offset=0&status=open';
     # 广州的你，择偶的标准是怎样的？
     url_template1 = r"https://www.zhihu.com/api/v4/questions/311464426/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=20&offset={0}&platform=desktop&sort_by=default"
     # 你择偶的标准是怎样的？
@@ -34,27 +37,34 @@ class zhihu(scrapy.Spider):
     # 有个漂亮女朋友是什么样的体验？
     url_template3 = r"https://www.zhihu.com/api/v4/questions/285906324/answers?include=data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,annotation_action,annotation_detail,collapse_reason,is_sticky,collapsed_by,suggest_edit,comment_count,can_comment,content,editable_content,voteup_count,reshipment_settings,comment_permission,created_time,updated_time,review_info,relevant_info,question,excerpt,relationship.is_authorized,is_author,voting,is_thanked,is_nothelp,is_labeled,is_recognized;data[*].mark_infos[*].url;data[*].author.follower_count,badge[*].topics&limit=20&offset={0}&platform=desktop&sort_by=default"
 
+
+
     # scrapy 配置
     name="zhihu"
     allowed_domains = ["www.zhihu.com"]
 
     def start_requests(self):
-        for offset in range(0, 100000, 20):
-            yield scrapy.Request(url=self.url_template1.format(offset), headers=self.headers, callback=self.parse)
-            print("===> offset: {0}".format(offset))
-            sleep(1)
+        offset = 0
+        yield scrapy.Request(url=self.url_template1.format(offset), headers=self.headers, callback=self.parse_answer)
 
-    def parse(self, response):
+    # 解析某个问题下所有的回答
+    def parse_answer(self, response):
         text = json.loads(response.body.decode(encoding='utf-8'))
 
+        # 判断是否有下一页
         if not text['paging']['is_end']:
+            # 遍历所有回答
             for answer in text['data']:
-                yield self.genItem(answer)
+                yield self.gen_answer_item(answer)
+            # 跳转到下一页
+            sleep(1)
+            yield scrapy.Request(url=text['paging']['next'], headers=self.headers, callback=self.parse_answer)
         else:
+            # 退出
             self.crawler.engine.close_spider(self, '===> it is end')
 
     # 把每个回答封装成item对象
-    def genItem(self, answer):
+    def gen_answer_item(self, answer):
         item = ZhihuAnswerItem()
 
         # 获取剔除掉 html 标签的回答内容
@@ -67,7 +77,13 @@ class zhihu(scrapy.Spider):
                 img_urls.remove(url)
         item['image_urls'] = img_urls
 
-        item['id'] = str(answer['id'])
+        # 某种条件下，不可获取用户粉丝数（匿名用户才返回 follower_count，但是都为0）
+        if "follower_count" in answer['author']:
+            item['author_follower_count'] = int(answer['author']['follower_count'])
+        else:
+            item['author_follower_count'] = -1
+
+        item['answer_id'] = str(answer['id'])
         item['created_time'] = int(answer['created_time'])
         item['updated_time'] = int(answer['updated_time'])
         item['voteup_count'] = int(answer['voteup_count'])
@@ -76,5 +92,40 @@ class zhihu(scrapy.Spider):
         item['author_url_token'] = answer['author']['url_token']
         item['author_headline'] = answer['author']['headline']
         item['author_gender'] = int(answer['author']['gender'])
+        item['question_id'] = int(answer['question']['id'])
+        item['question_title'] = answer['question']['title']
+        item['question_created'] = answer['question']['created']
+        item['question_updated_time'] = answer['question']['updated_time']
+
+        # 处理该回答下的评论
+        # if int(answer['comment_count']) > 0:
+        #     # todo 此处为什么是用 return 不能是 yield
+        #     yield scrapy.Request(url=self.comment_template.format(str(answer['id'])), headers=self.headers, callback=self.parse_comment)
+
+        yield item
+
+    # 解析某个问题下所有的评论
+    def parse_comment(self, response):
+        text = json.loads(response.body.decode(encoding='utf-8'))
+
+        # 判断是否有下一页
+        if not text['paging']['is_end']:
+            # 遍历所有评论
+            for comment in text['data']:
+                yield self.gen_comment_item(comment)
+            # 跳转到下一页
+            yield scrapy.Request(url=text['paging']['next'], headers=self.headers, callback=self.parse_comment)
+
+    def gen_comment_item(self, comment):
+        item = ZhihuCommentItem()
+
+        item['comment_id'] = str(comment['id'])
+        item['comment_content'] = comment['content']
+        item['comment_created_time'] = int(comment['created_time'])
+        item['comment_vote_count'] = int(comment['vote_count'])
+        item['child_comment_count'] = int(comment['child_comment_count'])
+        item['author_url_token'] = comment['author']['member']['url_token']
+        item['author_name'] = comment['author']['member']['name']
+        item['author_gender'] = int(comment['author']['member']['gender'])
 
         return item
