@@ -10,7 +10,9 @@ import uuid
 from scrapy import Request
 from scrapy.pipelines.images import ImagesPipeline
 
-from zhihu_question.items import ZhihuAnswerEntity
+from zhihu_question.items import ZhihuAnswerEntity, ZhihuCommentEntity, ZhihuAnswerItem, ZhihuCommentItem, \
+    ZhihuUserInfoItem, ZhihuFolloweesItem, ZhihuFollowersItem, ZhihuUserInfoEntity, ZhihuFolloweesEntity, \
+    ZhihuFollowersEntity
 
 
 class ZhihuQuestionPipeline(object):
@@ -29,22 +31,85 @@ class SaveContentToLocalPipeline(object):
 # 用于保存回答信息到 mysql
 class SaveContentToMysqlPipeline(object):
     def process_item(self, item, spider):
-        entity = ZhihuAnswerEntity.create(
-            id=item['id'],
-            content=item['content'],
-            created_time=item['created_time'],
-            updated_time=item['updated_time'],
-            voteup_count=item['voteup_count'],
-            comment_count=item['comment_count'],
-            author_name=item['author_name'],
-            author_url_token=item['author_url_token'],
-            author_headline=item['author_headline'],
-            author_gender=item['author_gender']
-        )
-
-        entity.save()
-
-        return item
+        # ZhihuCommentItem 的处理逻辑（主键重复插入则忽略冲突）
+        if isinstance(item, ZhihuCommentItem):
+            ZhihuCommentEntity.insert(
+                question_id=item['question_id'],
+                answer_id=item['answer_id'],
+                comment_id=item['comment_id'],
+                comment_content=item['comment_content'],
+                comment_created_time=item['comment_created_time'],
+                comment_vote_count=item['comment_vote_count'],
+                child_comment_count=item['child_comment_count'],
+                author_url_token=item['author_url_token'],
+                author_name=item['author_name'],
+                author_gender=item['author_gender']
+            ).on_conflict_ignore().execute()
+            return item
+        # ZhihuAnswerItem 的处理逻辑（主键重复插入则忽略冲突）
+        elif isinstance(item, ZhihuAnswerItem):
+            ZhihuAnswerEntity.insert(
+                answer_id=item['answer_id'],
+                content=item['content'],
+                created_time=item['created_time'],
+                updated_time=item['updated_time'],
+                voteup_count=item['voteup_count'],
+                comment_count=item['comment_count'],
+                author_name=item['author_name'],
+                author_url_token=item['author_url_token'],
+                author_headline=item['author_headline'],
+                author_gender=item['author_gender'],
+                author_follower_count=item['author_follower_count'],
+                question_id=item['question_id'],
+                question_title=item['question_title'],
+                question_created=item['question_created'],
+                question_updated_time=item['question_updated_time']
+            ).on_conflict_ignore().execute()
+            return item
+        # ZhihuUserInfoItem 的处理逻辑（主键重复插入则忽略冲突）
+        elif isinstance(item, ZhihuUserInfoItem):
+            ZhihuUserInfoEntity.insert(
+                id=item['id'],
+                url_token=item['url_token'],
+                name=item['name'],
+                user_type=item['user_type'],
+                headline=item['headline'],
+                gender=item['gender'],
+                follower_count=item['follower_count'],
+                answer_count=item['answer_count'],
+                articles_count=item['articles_count']
+            ).on_conflict_ignore().execute()
+            return item
+        # ZhihuFolloweesItem 的处理逻辑（联合主键重复插入则忽略冲突）
+        elif isinstance(item, ZhihuFolloweesItem):
+            ZhihuFolloweesEntity.insert(
+                user_url_token=item['user_url_token'],
+                followee_id=item['followee_id'],
+                followee_url_token=item['followee_url_token'],
+                followee_name=item['followee_name'],
+                followee_user_type=item['followee_user_type'],
+                followee_headline=item['followee_headline'],
+                followee_gender=item['followee_gender'],
+                followee_follower_count=item['followee_follower_count'],
+                followee_answer_count=item['followee_answer_count'],
+                followee_articles_count=item['followee_articles_count']
+            ).on_conflict_ignore().execute()
+            return item
+        # ZhihuFollowersItem 的处理逻辑（联合主键重复插入则忽略冲突）
+        elif isinstance(item, ZhihuFollowersItem):
+            ZhihuFollowersEntity.insert(
+                user_url_token=item['user_url_token'],
+                follower_id=item['follower_id'],
+                follower_url_token=item['follower_url_token'],
+                follower_name=item['follower_name'],
+                follower_user_type=item['follower_user_type'],
+                follower_headline=item['follower_headline'],
+                follower_gender=item['follower_gender'],
+                follower_follower_count=item['follower_follower_count'],
+                follower_answer_count=item['follower_answer_count'],
+                follower_articles_count=item['follower_articles_count']
+            ).on_conflict_ignore().execute()
+            return item
 
 
 # 继承ImagesPipeline，实现下载图片
