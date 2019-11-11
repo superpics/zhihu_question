@@ -86,7 +86,7 @@ class MyProxiesSpiderMiddleware(object):
         return s
 
     def process_request(self, request, spider):
-        print("===> process_request")
+        print("===> process_request, current url is: " + request.url)
 
         # 设置IP代理
         # proxy_ip = random.choice(self.ip_pool)
@@ -112,7 +112,8 @@ class MyProxiesSpiderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response object: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
-        pass
+        # 记录当前url（下次可以从该链接开始爬取）
+        print("===>exception, url is :" + request.url)
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)

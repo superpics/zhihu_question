@@ -25,7 +25,7 @@ HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 ROBOTSTXT_OBEY = False
 
 # 随机延迟下载，0.5到1.5之间的一个随机值 * DOWNLOAD_DELAY 的结果作为等待间隔
-RANDOM_DELAY = 50
+# RANDOM_DELAY = 5
 
 # 对单个网站进行并发请求的最大值
 #CONCURRENT_REQUESTS_PER_IP = 1
@@ -36,7 +36,8 @@ RANDOM_DELAY = 50
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 3
+# DOWNLOAD_DELAY = 0.25    # 250 ms of delay
+DOWNLOAD_DELAY = 0
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16

@@ -12,7 +12,9 @@ from scrapy.pipelines.images import ImagesPipeline
 
 from zhihu_question.items import ZhihuAnswerEntity, ZhihuCommentEntity, ZhihuAnswerItem, ZhihuCommentItem, \
     ZhihuUserInfoItem, ZhihuFolloweesItem, ZhihuFollowersItem, ZhihuUserInfoEntity, ZhihuFolloweesEntity, \
-    ZhihuFollowersEntity
+    ZhihuFollowersEntity, ZhihuQuestionFollowersItem, ZhihuQuestionFollowersEntity, ZhihuChildrenCommentItem, \
+    ZhihuChildrenCommentEntity, ZhihuTitleCommentItem, ZhihuTitleChildrenCommentItem, ZhihuTitleCommentEntity, \
+    ZhihuTitleChildrenCommentEntity
 
 
 class ZhihuQuestionPipeline(object):
@@ -37,15 +39,32 @@ class SaveContentToMysqlPipeline(object):
                 question_id=item['question_id'],
                 answer_id=item['answer_id'],
                 comment_id=item['comment_id'],
+                resource_type=item['resource_type'],
                 comment_content=item['comment_content'],
                 comment_created_time=item['comment_created_time'],
                 comment_vote_count=item['comment_vote_count'],
                 child_comment_count=item['child_comment_count'],
+                author_id=item['author_id'],
                 author_url_token=item['author_url_token'],
                 author_name=item['author_name'],
                 author_gender=item['author_gender']
             ).on_conflict_ignore().execute()
             return item
+        # 问题回答的评论的子评论
+        elif isinstance(item, ZhihuChildrenCommentItem):
+            ZhihuChildrenCommentEntity.insert(
+                question_id=item['question_id'],
+                answer_id=item['answer_id'],
+                father_comment_id=item['father_comment_id'],
+                comment_id=item['comment_id'],
+                vote_count=item['vote_count'],
+                created_time=item['created_time'],
+                content=item['content'],
+                commentator_id=item['commentator_id'],
+                commentator_name=item['commentator_name'],
+                commentator_headline=item['commentator_headline'],
+                commentator_gender=item['commentator_gender']
+            ).on_conflict_ignore().execute()
         # ZhihuAnswerItem 的处理逻辑（主键重复插入则忽略冲突）
         elif isinstance(item, ZhihuAnswerItem):
             ZhihuAnswerEntity.insert(
@@ -55,6 +74,7 @@ class SaveContentToMysqlPipeline(object):
                 updated_time=item['updated_time'],
                 voteup_count=item['voteup_count'],
                 comment_count=item['comment_count'],
+                author_id=item['author_id'],
                 author_name=item['author_name'],
                 author_url_token=item['author_url_token'],
                 author_headline=item['author_headline'],
@@ -63,7 +83,8 @@ class SaveContentToMysqlPipeline(object):
                 question_id=item['question_id'],
                 question_title=item['question_title'],
                 question_created=item['question_created'],
-                question_updated_time=item['question_updated_time']
+                question_updated_time=item['question_updated_time'],
+                url=item['url']
             ).on_conflict_ignore().execute()
             return item
         # ZhihuUserInfoItem 的处理逻辑（主键重复插入则忽略冲突）
@@ -110,6 +131,49 @@ class SaveContentToMysqlPipeline(object):
                 follower_articles_count=item['follower_articles_count']
             ).on_conflict_ignore().execute()
             return item
+        elif isinstance(item, ZhihuQuestionFollowersItem):
+            ZhihuQuestionFollowersEntity.insert(
+                question_id=item['question_id'],
+                user_type=item['user_type'],
+                answer_count=item['answer_count'],
+                url_token=item['url_token'],
+                articles_count=item['articles_count'],
+                id=item['id'],
+                name=item['name'],
+                headline=item['headline'],
+                gender=item['gender'],
+                follower_count=item['follower_count']
+            ).on_conflict_ignore().execute()
+        # 问题标题评论
+        elif isinstance(item, ZhihuTitleCommentItem):
+            ZhihuTitleCommentEntity.insert(
+                question_id=item['question_id'],
+                comment_id=item['comment_id'],
+                resource_type=item['resource_type'],
+                comment_content=item['comment_content'],
+                comment_created_time=item['comment_created_time'],
+                comment_vote_count=item['comment_vote_count'],
+                child_comment_count=item['child_comment_count'],
+                author_id=item['author_id'],
+                author_url_token=item['author_url_token'],
+                author_name=item['author_name'],
+                author_gender=item['author_gender']
+            ).on_conflict_ignore().execute()
+            return item
+        # 问题标题评论的子评论
+        elif isinstance(item, ZhihuTitleChildrenCommentItem):
+            ZhihuTitleChildrenCommentEntity.insert(
+                question_id=item['question_id'],
+                father_comment_id=item['father_comment_id'],
+                comment_id=item['comment_id'],
+                vote_count=item['vote_count'],
+                created_time=item['created_time'],
+                content=item['content'],
+                commentator_id=item['commentator_id'],
+                commentator_name=item['commentator_name'],
+                commentator_headline=item['commentator_headline'],
+                commentator_gender=item['commentator_gender']
+            ).on_conflict_ignore().execute()
 
 
 # 继承ImagesPipeline，实现下载图片
